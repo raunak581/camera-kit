@@ -1,3 +1,4 @@
+import 'package:apk/barcode_sacnner.dart';
 import 'package:apk/camera_kit.dart';
 import 'package:flutter/material.dart';
 
@@ -32,7 +33,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: CameraKitHomePage()
+      home: BarcodeSacnner()
     );
   }
 }

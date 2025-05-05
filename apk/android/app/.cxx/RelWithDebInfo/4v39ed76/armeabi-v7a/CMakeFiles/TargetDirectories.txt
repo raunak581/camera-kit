@@ -1,0 +1,2 @@
+C:/Users/LENOVO/Desktop/camera-kit/apk/android/app/.cxx/RelWithDebInfo/4v39ed76/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/LENOVO/Desktop/camera-kit/apk/android/app/.cxx/RelWithDebInfo/4v39ed76/armeabi-v7a/CMakeFiles/rebuild_cache.dir

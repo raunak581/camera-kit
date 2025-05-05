@@ -1,16 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/foundation.dart';
 import 'package:camerakit_flutter/camerakit_flutter.dart';
 import 'package:camerakit_flutter/lens_model.dart';
 
 class Constants {
   static const List<String> groupIdList = [
-    "a0c7f4f8-6ace-4d41-9a3a-f7e4dc2d65bd" // replace with your real groupId
+    "a0c7f4f8-6ace-4d41-9a3a-f7e4dc2d65bd"
   ];
 }
-
 
 class CameraKitHomePage extends StatefulWidget {
   const CameraKitHomePage({super.key});
@@ -26,28 +24,54 @@ class _CameraKitHomePageState extends State<CameraKitHomePage>
   bool isOpeningLens = false;
   late String _filePath = '';
   late String _fileType = '';
+  List<Lens> _cachedLenses = [];
 
   @override
   void initState() {
     super.initState();
     _cameraKitFlutterImpl = CameraKitFlutterImpl(cameraKitFlutterEvents: this);
+
+    // Preload lenses in background
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchLensListInBackground();
+    });
   }
 
-  void openCameraWithLens(String lensId, String groupId) {
+  Future<void> _fetchLensListInBackground() async {
+    try {
+      await _cameraKitFlutterImpl.getGroupLenses(
+          groupIds: Constants.groupIdList);
+    } catch (e) {
+      debugPrint("❌ Failed to fetch lenses early: $e");
+    }
+  }
+
+  Future<void> openCameraWithLens(String lensId, String groupId) async {
     setState(() => isOpeningLens = true);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cameraKitFlutterImpl.openCameraKitWithSingleLens(
+    await Future.delayed(
+        const Duration(milliseconds: 100)); // allow spinner to render
+
+    try {
+      await _cameraKitFlutterImpl.openCameraKitWithSingleLens(
         lensId: lensId,
         groupId: groupId,
         isHideCloseButton: false,
       );
-    });
+    } catch (e) {
+      debugPrint("❌ Error opening lens: $e");
+    }
+
+    setState(() => isOpeningLens = false);
   }
 
   Future<void> showLensList() async {
-    setState(() => isLoading = true);
+    if (_cachedLenses.isEmpty) {
+      setState(() => isLoading = true);
+    }
+
     try {
-      await _cameraKitFlutterImpl.getGroupLenses(groupIds: Constants.groupIdList);
+      await _cameraKitFlutterImpl.getGroupLenses(
+          groupIds: Constants.groupIdList);
     } on PlatformException {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("❌ Failed to load lenses")),
@@ -70,7 +94,10 @@ class _CameraKitHomePageState extends State<CameraKitHomePage>
 
   @override
   void receivedLenses(List<Lens> lensList) async {
-    setState(() => isLoading = false);
+    setState(() {
+      isLoading = false;
+      _cachedLenses = lensList;
+    });
 
     if (lensList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -79,11 +106,13 @@ class _CameraKitHomePageState extends State<CameraKitHomePage>
       return;
     }
 
-      final result = await Navigator.of(context).push(MaterialPageRoute(
+    final result = await Navigator.of(context).push(MaterialPageRoute(
       builder: (_) => LensSelector(lensList: lensList),
     )) as Map<String, dynamic>?;
 
     if (result != null) {
+      print("aaaaaaaaaaaaaaaa"+result['lensId']);
+      print(result['groupId']);
       openCameraWithLens(result['lensId']!, result['groupId']!);
     }
   }
@@ -126,14 +155,7 @@ class LensSelector extends StatelessWidget {
           return ListTile(
             title: Text(lens.name ?? 'Unnamed Lens'),
             subtitle: Text(lens.id!),
-            onTap: () async {
-              showDialog(
-                context: context,
-                barrierDismissible: false,
-                builder: (_) => const Center(child: CircularProgressIndicator()),
-              );
-              await Future.delayed(const Duration(milliseconds: 300));
-              Navigator.pop(context); // Close spinner
+            onTap: () {
               Navigator.pop(context, {
                 'lensId': lens.id,
                 'groupId': lens.groupId,
